@@ -110,8 +110,9 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     backgroundColor: '#ffffff',
-    titleBarStyle: 'hidden',
-    trafficLightPosition: { x: 16, y: 16 },
+    // macOS uses hidden for traffic lights; Windows uses default for native frame
+    titleBarStyle: process.platform === 'darwin' ? 'hidden' : 'default',
+    ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 16 } } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -233,7 +234,8 @@ ipcMain.handle('dialog:openFile', async () => {
     store.set('lastOpenedFile', filePath)
     addRecentFile(filePath)
     return { path: filePath, content }
-  } catch {
+  } catch (err) {
+    dialog.showErrorBox('Open Failed', `Could not read file:\n${String(err)}`)
     return null
   }
 })
@@ -242,7 +244,8 @@ ipcMain.handle('dialog:saveFile', async (_event, filePath: string, content: stri
   try {
     writeFileSync(filePath, content, 'utf-8')
     return { success: true }
-  } catch {
+  } catch (err) {
+    dialog.showErrorBox('Save Failed', `Could not save file:\n${String(err)}`)
     return { success: false }
   }
 })
@@ -353,12 +356,6 @@ function addRecentFile(filePath: string): void {
   store.set('recentFiles', updated)
 }
 
-app.commandLine.appendSwitch('disable-gpu')
-app.commandLine.appendSwitch('disable-gpu-compositing')
-app.commandLine.appendSwitch('disable-gpu-rasterization')
-app.commandLine.appendSwitch('disable-gpu-sandbox')
-app.commandLine.appendSwitch('no-sandbox')
-app.commandLine.appendSwitch('in-process-gpu')
 
 app.whenReady().then(() => {
   createWindow()
